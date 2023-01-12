@@ -48,6 +48,7 @@ class Defisheye:
                    "xcenter": None,
                    "ycenter": None,
                    "radius": None,
+                   "p_radius": None,
                    "angle": 0,
                    "dtype": "equalarea",
                    "format": "circular"
@@ -71,31 +72,30 @@ class Defisheye:
         if self._ycenter is None:
             self._ycenter = (height - 1) // 2
 
-        dim = min(width, height) - 1
-
         if self._radius is None:
-            self._radius = dim // 2
-
-        print("dim : " , dim)
+            self._radius = (min(width, height) - 1) // 2
 
         self._width = self._image.shape[1]
         self._height = self._image.shape[0]
 
-        print(self._width, self._height)
-        dim = dim * 4 / 3
-        if self._dtype == "linear":
-            self._ifoc = dim * 180 / (self._fov * pi)
-        elif self._dtype == "equalarea":
-            self._ifoc = dim / (2.0 * sin(self._fov * pi / 720))
-        elif self._dtype == "orthographic":
-            self._ifoc = dim / (2.0 * sin(self._fov * pi / 360))
-        elif self._dtype == "stereographic":
-            self._ifoc = dim / (2.0 * tan(self._fov * pi / 720))
+        print(self._xcenter, self._ycenter)
 
+        print(self._width, self._height)
+        print(self._radius, self._p_radius)
+
+        if self._dtype == "linear":
+            self._ifoc = self._radius * 2 * 180 / (self._fov * pi)
+        elif self._dtype == "equalarea":
+            self._ifoc = self._radius * 2 / (2.0 * sin(self._fov * pi / 720))
+        elif self._dtype == "orthographic":
+            self._ifoc = self._radius * 2 / (2.0 * sin(self._fov * pi / 360))
+        elif self._dtype == "stereographic":
+            self._ifoc = self._radius * 2 / (2.0 * tan(self._fov * pi / 720))
+        self._ifoc = self._ifoc * 4 /3    
     def _map(self, i, j, ofocinv):
 
-        xd = i - self._radius
-        yd = j - self._radius
+        xd = i - self._p_radius
+        yd = j - self._p_radius
 
         rd = hypot(xd, yd)
         phiang = arctan(ofocinv * rd)
@@ -127,6 +127,7 @@ class Defisheye:
 
         xs = xs.astype(int)
         ys = ys.astype(int)
+        
         return xs, ys
 
     def convert(self, outfile):
@@ -136,7 +137,7 @@ class Defisheye:
         # r/f=tan(phi);
         # f=r/tan(phi);
         # f= (N/2)/tan((fov/2)*(pi/180)) = N/(2*tan(fov*pi/360))
-        dim = self._radius * 2;
+        dim = self._p_radius * 2;
         self._ofoc = dim / (2 * tan(self._pfov * pi / 360))
         ofocinv = 1.0 / self._ofoc
 
@@ -144,10 +145,12 @@ class Defisheye:
         j = arange(dim)
         i, j = meshgrid(i, j)
 
+        print(i)
+        print(j)
         xs, ys, = self._map(i, j, ofocinv)
                 
         img = zeros((dim, dim, 3), dtype=uint8)
-        img[i, j, :] = self._image[xs, ys, :]
+        img[j, i, :] = self._image[ys, xs, :]
         cv2.imwrite(outfile, img)
         return img
 
