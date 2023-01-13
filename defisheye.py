@@ -24,7 +24,7 @@ Copyright [2019] [E. S. Pereira]
    limitations under the License.
 """
 import cv2
-from numpy import arange, sqrt, arctan, sin, tan, zeros, array, meshgrid, pi, uint8
+from numpy import arange, sqrt, arctan, sin, tan, zeros, array, meshgrid, pi, uint8, arcsin
 from numpy import argwhere, hypot
 
 
@@ -84,37 +84,37 @@ class Defisheye:
         print(self._radius, self._p_radius)
 
         if self._dtype == "linear":
-            self._ifoc = self._radius * 2 * 180 / (self._fov * pi)
+            self._ffoc = self._radius * 2 * 180 / (self._fov * pi)
         elif self._dtype == "equalarea":
-            self._ifoc = self._radius * 2 / (2.0 * sin(self._fov * pi / 720))
+            self._ffoc = self._radius * 2 / (2.0 * sin(self._fov * pi / 720))
         elif self._dtype == "orthographic":
-            self._ifoc = self._radius * 2 / (2.0 * sin(self._fov * pi / 360))
+            self._ffoc = self._radius * 2 / (2.0 * sin(self._fov * pi / 360))
         elif self._dtype == "stereographic":
-            self._ifoc = self._radius * 2 / (2.0 * tan(self._fov * pi / 720))
-        self._ifoc = self._ifoc * 4 /3    
-    def _map(self, i, j, ofocinv):
+            self._ffoc = self._radius * 2 / (2.0 * tan(self._fov * pi / 720))
+
+    def _map(self, i, j, pfocinv):
 
         xd = i - self._p_radius
         yd = j - self._p_radius
 
         rd = hypot(xd, yd)
-        phiang = arctan(ofocinv * rd)
+        phiang = arctan(pfocinv * rd)
 
         if self._dtype == "linear":
-            rr = self._ifoc * phiang
+            rr = self._ffoc * phiang
             # rr = "rr={}*phiang;".format(ifoc)
 
         elif self._dtype == "equalarea":
-            rr = self._ifoc * sin(phiang / 2)
+            rr = self._ffoc * sin(phiang / 2)
             # rr = "rr={}*sin(phiang/2);".format(ifoc)
 
         elif self._dtype == "orthographic":
-            rr = self._ifoc * sin(phiang)
+            rr = self._ffoc * sin(phiang)
             # rr="rr={}*sin(phiang);".format(ifoc)
 
         elif self._dtype == "stereographic":
-            rr = self._ifoc * tan(phiang / 2)
-
+            rr = self._ffoc * tan(phiang / 2)
+        rr = rr * 4 / 3
         rdmask = rd != 0
         xs = xd.copy()
         ys = yd.copy()
@@ -138,8 +138,8 @@ class Defisheye:
         # f=r/tan(phi);
         # f= (N/2)/tan((fov/2)*(pi/180)) = N/(2*tan(fov*pi/360))
         dim = self._p_radius * 2;
-        self._ofoc = dim / (2 * tan(self._pfov * pi / 360))
-        ofocinv = 1.0 / self._ofoc
+        self._pfoc = dim / (2 * tan(self._pfov * pi / 360))
+        pfocinv = 1.0 / self._pfoc
 
         i = arange(dim)
         j = arange(dim)
@@ -147,7 +147,7 @@ class Defisheye:
 
         print(i)
         print(j)
-        xs, ys, = self._map(i, j, ofocinv)
+        xs, ys, = self._map(i, j, pfocinv)
                 
         img = zeros((dim, dim, 3), dtype=uint8)
         img[j, i, :] = self._image[ys, xs, :]
@@ -179,10 +179,10 @@ class Defisheye:
         x0 = fx - self._xcenter
         y0 = fy - self._ycenter
         r0 = hypot(x0, y0)
-        phiang = arctan(r0 / self._ifoc)
-        r = self._ofoc * tan(phiang)
-        x = x0 * r / r0 + self._radius
-        y = y0 * r / r0 + self._radius
+        phiang = 2 * arcsin(r0 * 3 / 4/ self._ffoc)
+        r = self._pfoc * tan(phiang)
+        x = x0 * r / r0 + self._p_radius
+        y = y0 * r / r0 + self._p_radius
         return int(x), int(y)
 
 
