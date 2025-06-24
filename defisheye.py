@@ -32,8 +32,9 @@ class Defisheye:
     """
     Defisheye
 
-    fov: fisheye field of view (aperture) in degrees
-    pfov: perspective field of view (aperture) in degrees
+    fov: fisheye field of view (aperture) in degrees. ffoc(fusheye focal length) is computed from this value.
+    p_radius: radius of perspective area. defish된 이미지의 반지름.
+    pfov: perspective field of view (aperture) in degrees. defish해서 보여질 영역의 화각.
     xcenter: x center of fisheye area
     ycenter: y center of fisheye area
     radius: radius of fisheye area
@@ -114,7 +115,7 @@ class Defisheye:
 
         elif self._dtype == "stereographic":
             rr = self._ffoc * tan(phiang / 2)
-        rr = rr * 4 / 3
+        #rr = rr * 4 / 3
         rdmask = rd != 0
         xs = xd.copy()
         ys = yd.copy()
@@ -137,7 +138,7 @@ class Defisheye:
         # r/f=tan(phi);
         # f=r/tan(phi);
         # f= (N/2)/tan((fov/2)*(pi/180)) = N/(2*tan(fov*pi/360))
-        dim = self._p_radius * 2;
+        dim = self._p_radius * 2
         self._pfoc = dim / (2 * tan(self._pfov * pi / 360))
         pfocinv = 1.0 / self._pfoc
 
@@ -150,7 +151,7 @@ class Defisheye:
         xs, ys, = self._map(i, j, pfocinv)
                 
         img = zeros((dim, dim, 3), dtype=uint8)
-        img[j, i, :] = self._image[ys, xs, :]
+        img[j, i] = self._image[ys, xs]
         cv2.imwrite(outfile, img)
         return img
 
