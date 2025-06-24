@@ -27,6 +27,7 @@ import cv2
 from numpy import arange, sqrt, arctan, sin, tan, zeros, array, meshgrid, pi, uint8, arcsin
 from numpy import argwhere, hypot
 from itertools import product
+import math
 
 class Defisheye:
     """
@@ -50,7 +51,7 @@ class Defisheye:
                    "ycenter": None,
                    "radius": None,
                    "p_radius": None,
-                   "angle": 0,
+                   "angle": 7,
                    "dtype": "equalarea",
                    "format": "circular"
                    }
@@ -91,7 +92,7 @@ class Defisheye:
         for i in range(len(points)):
             xd = points[i][0] - self._p_radius
             yd = points[i][1] - self._p_radius
-
+            theta = math.atan2(yd, xd)
             rd = hypot(xd, yd)
             if rd == 0:
                 # if the point is at the center, we can skip the rest of the calculations
@@ -100,9 +101,11 @@ class Defisheye:
             phiang = arctan(pfocinv * rd)
 
             rr = self._ffoc * phiang
+            x = rr * math.cos(theta - self._angle * pi / 180) + self._xcenter
+            y = rr * math.sin(theta - self._angle * pi / 180) + self._ycenter
 
-            x = int(xd * rr / rd + self._xcenter)
-            y = int(yd * rr / rd + self._ycenter)
+            x = int(x)
+            y = int(y)
             result.append((x, y))
             
         return result
