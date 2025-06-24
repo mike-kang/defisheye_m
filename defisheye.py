@@ -26,7 +26,7 @@ Copyright [2019] [E. S. Pereira]
 import cv2
 from numpy import arange, sqrt, arctan, sin, tan, zeros, array, meshgrid, pi, uint8, arcsin
 from numpy import argwhere, hypot
-
+from itertools import product
 
 class Defisheye:
     """
@@ -84,52 +84,28 @@ class Defisheye:
         print(self._width, self._height)
         print(self._radius, self._p_radius)
 
-        if self._dtype == "linear":
-            self._ffoc = self._radius * 2 * 180 / (self._fov * pi)
-        elif self._dtype == "equalarea":
-            self._ffoc = self._radius * 2 / (2.0 * sin(self._fov * pi / 720))
-        elif self._dtype == "orthographic":
-            self._ffoc = self._radius * 2 / (2.0 * sin(self._fov * pi / 360))
-        elif self._dtype == "stereographic":
-            self._ffoc = self._radius * 2 / (2.0 * tan(self._fov * pi / 720))
+        self._ffoc = self._radius * 2 * 180 / (self._fov * pi)
 
-    def _map(self, i, j, pfocinv):
+    def _map(self, points, pfocinv):
+        result = []
+        for i in range(len(points)):
+            xd = points[i][0] - self._p_radius
+            yd = points[i][1] - self._p_radius
 
-        xd = i - self._p_radius
-        yd = j - self._p_radius
+            rd = hypot(xd, yd)
+            if rd == 0:
+                # if the point is at the center, we can skip the rest of the calculations
+                result.append((self._xcenter, self._ycenter))
+                continue
+            phiang = arctan(pfocinv * rd)
 
-        rd = hypot(xd, yd)
-        phiang = arctan(pfocinv * rd)
-
-        if self._dtype == "linear":
             rr = self._ffoc * phiang
-            # rr = "rr={}*phiang;".format(ifoc)
 
-        elif self._dtype == "equalarea":
-            rr = self._ffoc * sin(phiang / 2)
-            # rr = "rr={}*sin(phiang/2);".format(ifoc)
-
-        elif self._dtype == "orthographic":
-            rr = self._ffoc * sin(phiang)
-            # rr="rr={}*sin(phiang);".format(ifoc)
-
-        elif self._dtype == "stereographic":
-            rr = self._ffoc * tan(phiang / 2)
-        #rr = rr * 4 / 3
-        rdmask = rd != 0
-        xs = xd.copy()
-        ys = yd.copy()
-
-        xs[rdmask] = (rr[rdmask] / rd[rdmask]) * xd[rdmask] + self._xcenter
-        ys[rdmask] = (rr[rdmask] / rd[rdmask]) * yd[rdmask] + self._ycenter
-
-        xs[~rdmask] = 0
-        ys[~rdmask] = 0
-
-        xs = xs.astype(int)
-        ys = ys.astype(int)
-        
-        return xs, ys
+            x = int(xd * rr / rd + self._xcenter)
+            y = int(yd * rr / rd + self._ycenter)
+            result.append((x, y))
+            
+        return result
 
     def convert(self, outfile):
 
@@ -142,16 +118,17 @@ class Defisheye:
         self._pfoc = dim / (2 * tan(self._pfov * pi / 360))
         pfocinv = 1.0 / self._pfoc
 
-        i = arange(dim)
-        j = arange(dim)
-        i, j = meshgrid(i, j)
+        x = arange(dim)
+        y = arange(dim)
+        points = list(product(x, y))
 
-        print(i)
-        print(j)
-        xs, ys, = self._map(i, j, pfocinv)
+        #print(points)
+        points_ = self._map(points, pfocinv)
                 
         img = zeros((dim, dim, 3), dtype=uint8)
-        img[j, i] = self._image[ys, xs]
+        for idx, (x, y) in enumerate(points):
+            xs, ys = points_[idx]
+            img[y, x] = self._image[ys, xs]
         cv2.imwrite(outfile, img)
         return img
 
